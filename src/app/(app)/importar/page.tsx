@@ -9,6 +9,7 @@ interface Resumo {
   unidadesNovas: string[];
   unidadesAtualizadas: string[];
   linhasQuadro: number;
+  unidadesComPico: string[];
 }
 
 async function lerArquivo(f: File | null): Promise<string | undefined> {
@@ -61,6 +62,12 @@ export default function Importar() {
           <p>
             Uma linha por faixa horária: <code>unidade;dia;inicio;fim;pessoas</code>. Em <code>dia</code> use <code>seg</code>…<code>dom</code>,{" "}
             <code>todos</code>, <code>uteis</code> (seg–sex) ou <code>fds</code>. O horário de funcionamento de cada dia é deduzido das faixas.
+            Fim antes do início termina no dia seguinte (<code>22:00;06:00</code>).
+          </p>
+          <p className="dica">
+            Colunas opcionais: <code>setor</code> (ex.: Caixa, Açougue, Cozinha; cada setor só é coberto pelo quadro do mesmo setor),{" "}
+            <code>semana</code> (<code>tipica</code> ou <code>pico</code>, para a semana de Natal ou feriados), <code>bandeira</code> e <code>regional</code>{" "}
+            (basta em uma linha da unidade). Pico, bandeira e regional só são alterados quando a coluna está no arquivo.
           </p>
           <p><a href="/api/modelos/cobertura.csv">Baixar modelo de cobertura</a></p>
           <input type="file" accept=".csv,text/csv" onChange={(e) => { setCobertura(e.target.files?.[0] ?? null); setPrevia(null); }} />
@@ -69,7 +76,7 @@ export default function Importar() {
           <h2>2. Quadro atual</h2>
           <p>
             Uma linha por cargo: <code>unidade;cargo;quantidade;salario;jornada</code>. Salário mensal (aceita <code>2.500,00</code>), jornada semanal em horas.
-            Reimportar uma unidade substitui o quadro dela.
+            Coluna opcional <code>setor</code>, igual à da cobertura. Reimportar uma unidade substitui o quadro dela.
           </p>
           <p><a href="/api/modelos/quadro.csv">Baixar modelo de quadro</a></p>
           <input type="file" accept=".csv,text/csv" onChange={(e) => { setQuadro(e.target.files?.[0] ?? null); setPrevia(null); }} />
@@ -81,6 +88,7 @@ export default function Importar() {
         <div className="aviso">
           <strong>Arquivos válidos.</strong> Unidades novas: {previa.unidadesNovas.join(", ") || "nenhuma"}. Atualizadas:{" "}
           {previa.unidadesAtualizadas.join(", ") || "nenhuma"}. Linhas de quadro: {previa.linhasQuadro}.
+          {previa.unidadesComPico.length > 0 && <> Com semana de pico: {previa.unidadesComPico.join(", ")}.</>}
         </div>
       )}
       {feito && (

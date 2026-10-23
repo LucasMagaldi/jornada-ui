@@ -49,9 +49,12 @@ export default function Unidades() {
             <thead>
               <tr>
                 <th>Unidade</th>
+                <th>Bandeira</th>
+                <th>Regional</th>
                 <th>Colaboradores</th>
                 <th>Horas abertas/semana</th>
                 <th>Horário reduzido</th>
+                <th>Semana de pico</th>
                 <th></th>
               </tr>
             </thead>
@@ -59,9 +62,12 @@ export default function Unidades() {
               {unidades.map((u) => (
                 <tr key={u.id}>
                   <td><Link href={`/unidades/${u.id}`}>{u.nome}</Link></td>
+                  <td>{u.bandeira ?? "—"}</td>
+                  <td>{u.regional ?? "—"}</td>
                   <td>{u.headcount}</td>
                   <td>{formatarNumero(u.horasAbertasSemana, 1)}</td>
                   <td>{u.temHorarioReduzido ? <span className="selo ok">informado</span> : <span className="selo">não</span>}</td>
+                  <td>{u.temPico ? <span className="selo ok">informada</span> : <span className="selo">não</span>}</td>
                   <td><button className="link" onClick={() => excluir(u)}>Excluir</button></td>
                 </tr>
               ))}

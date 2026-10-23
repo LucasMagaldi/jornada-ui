@@ -5,6 +5,7 @@ import { NOME_CENARIO } from "@/lib/tipos";
 /** Mostra de onde vem cada número de uma fase (todo número acompanha suas premissas). */
 export function MemoriaCalculo({ f, p }: { f: ResultadoFase; p: Premissas }) {
   const J = f.fase.jornadaSemanal;
+  const porSetor = f.setores.length > 1;
   return (
     <div className="memoria">
       <ol>
@@ -24,16 +25,44 @@ export function MemoriaCalculo({ f, p }: { f: ResultadoFase; p: Premissas }) {
         <li>
           Delta FTE = <code>{formatarNumero(f.deltaFte)}</code>
           {f.deltaFte < 0 && " (sobra de quadro)"}
+          {porSetor && (
+            <>
+              ; déficit = Σ faltas por setor = <code>{formatarNumero(f.deficitFte)}</code> (sobra num setor não cobre falta em outro)
+            </>
+          )}
         </li>
         <li>
           Salário médio ponderado = <code>{formatarBRL(f.salarioMedio)}</code>; valor-hora = salário ÷ divisor {f.divisorUsado} ={" "}
           <code>{formatarBRL(f.valorHora)}</code>
+          {porSetor && " (os custos usam o salário médio de cada setor)"}
         </li>
         <li>
-          Horas faltantes = {formatarNumero(Math.max(0, f.deltaFte))} FTE × {formatarNumero(f.horasProdutivasPorColaborador)} h ={" "}
+          Horas faltantes = {formatarNumero(f.deficitFte)} FTE × {formatarNumero(f.horasProdutivasPorColaborador)} h ={" "}
           {formatarNumero(f.horasFaltantesSemana, 1)} h/semana = <code>{formatarNumero(f.horasFaltantesMes, 1)} h/mês</code> (× 52/12)
         </li>
       </ol>
+      {porSetor && (
+        <div className="tabela-wrap">
+          <table>
+            <thead>
+              <tr><th>Setor</th><th>Cobertura (h)</th><th>FTE nec.</th><th>FTE atual</th><th>Delta</th><th>Pessoas</th><th>Salário médio</th></tr>
+            </thead>
+            <tbody>
+              {f.setores.map((s) => (
+                <tr key={s.setor}>
+                  <td>{s.setor || "geral"}</td>
+                  <td>{formatarNumero(s.horasCoberturaSemana, 1)}</td>
+                  <td>{formatarNumero(s.fteNecessario)}</td>
+                  <td>{formatarNumero(s.fteAtualEquivalente)}</td>
+                  <td>{formatarNumero(s.deltaFte)}</td>
+                  <td>{s.headcount}</td>
+                  <td>{formatarBRL(s.salarioMedio)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <ul>
         {Object.values(f.cenarios).map((c) => (
           <li key={c.id}>

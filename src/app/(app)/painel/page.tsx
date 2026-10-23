@@ -9,10 +9,15 @@ import { api } from "@/lib/api";
 import { formatarBRL, formatarData, formatarNumero, sinal } from "@/lib/formato";
 import type { RespostaPremissas, RespostaSimulacao } from "@/lib/respostas";
 import { LIMITACOES } from "@/lib/textos";
-import type { IdCenario, Premissas } from "@/lib/tipos";
+import type { IdCenario, Premissas, ResultadoUnidade, TipoGrupo } from "@/lib/tipos";
 import { NOME_CENARIO } from "@/lib/tipos";
 
 const IDS: IdCenario[] = ["contratar", "horaExtra", "reduzirHorario", "mix"];
+
+type Semana = "tipica" | "pico";
+
+/** Rótulo de um grupo (D-34); "" = unidades sem o campo. */
+const nomeGrupo = (tipo: TipoGrupo, nome: string) => nome || (tipo === "bandeira" ? "Sem bandeira" : "Sem regional");
 
 export default function Painel() {
   const [sim, setSim] = useState<RespostaSimulacao | null>(null);
@@ -25,6 +30,8 @@ export default function Painel() {
   const [calculando, setCalculando] = useState(false);
   const [msg, setMsg] = useState("");
   const [gaveta, setGaveta] = useState(false);
+  const [semana, setSemana] = useState<Semana>("tipica");
+  const [tipoGrupo, setTipoGrupo] = useState<TipoGrupo>("bandeira");
   const pedido = useRef(0);
 
   useEffect(() => {
@@ -78,7 +85,12 @@ export default function Painel() {
   if (!sim || !premissas) return erro ? <Erros erro={erro} /> : <p className="carregando">Calculando…</p>;
 
   const r = sim.resultado;
-  const fases = r.consolidado;
+  const noPico = semana === "pico" && r.pico !== null;
+  const fases = noPico ? r.pico!.consolidado : r.consolidado;
+  const fasesDa = (u: ResultadoUnidade) => (noPico ? u.fasesPico ?? u.fases : u.fases);
+  const tiposGrupo = (["bandeira", "regional"] as TipoGrupo[]).filter((t) => r.grupos.some((g) => g.tipo === t));
+  const tipoAtivo = tiposGrupo.includes(tipoGrupo) ? tipoGrupo : tiposGrupo[0];
+  const grupos = r.grupos.filter((g) => g.tipo === tipoAtivo);
   const c = fases[Math.min(faseIdx, fases.length - 1)];
   const melhor = c.maisBarato;
   const maxCusto = Math.max(1, ...IDS.map((id) => c.custos[id]));
@@ -128,6 +140,22 @@ export default function Painel() {
 
       <div className="layout-painel">
         <div style={{ minWidth: 0 }}>
+          {r.pico && (
+            <>
+              <div className="abas">
+                <button className={!noPico ? "ativa" : ""} onClick={() => setSemana("tipica")}>Semana típica</button>
+                <button className={noPico ? "ativa" : ""} onClick={() => setSemana("pico")}>
+                  Semana de pico <span className="dica">· {r.pico.unidadesComPico} unid.</span>
+                </button>
+              </div>
+              {noPico && (
+                <div className="aviso">
+                  Semana de pico: mesmo quadro, com o horário e a cobertura do pico de cada unidade. Unidades sem pico informado entram com a semana típica.
+                  Os custos são mensais, como se o pico durasse o mês inteiro: use para comparar alternativas e ver onde a hora extra passa do limite.
+                </div>
+              )}
+            </>
+          )}
           <div className="abas">
             {fases.map((f, i) => (
               <button key={f.fase.id} className={i === faseIdx ? "ativa" : ""} onClick={() => setFaseIdx(i)}>
@@ -151,7 +179,7 @@ export default function Painel() {
             <div className="kpi">
               <div className="rotulo">Pessoas a mais</div>
               <div className="valor">{formatarNumero(c.deltaFte, 1)}</div>
-              <div className="nota">soma dos déficits por unidade</div>
+              <div className="nota">soma dos déficits por unidade e setor</div>
             </div>
             <div className="kpi">
               <div className="rotulo">Custo mensal (melhor por unidade)</div>
@@ -163,7 +191,7 @@ export default function Painel() {
           <div className="cartao">
             <div className="secao-topo">
               <div>
-                <h2>Custo por cenário — {c.fase.nome}</h2>
+                <h2>Custo por cenário — {c.fase.nome}{noPico && " · pico"}</h2>
                 <p className="dica">Estimativa mensal adicional para toda a rede</p>
               </div>
             </div>
@@ -196,7 +224,7 @@ export default function Painel() {
           <div className="cartao">
             <div className="secao-topo">
               <div>
-                <h2>Três fotografias</h2>
+                <h2>Três fotografias{noPico && " · pico"}</h2>
                 <p className="dica">Impacto progressivo das novas jornadas</p>
               </div>
             </div>
@@ -238,10 +266,62 @@ export default function Painel() {
             </div>
           </div>
 
+          {tipoAtivo && (
+            <div className="cartao">
+              <div className="secao-topo">
+                <div>
+                  <h2>Por {tipoAtivo} — {c.fase.nome}{noPico && " · pico"}</h2>
+                  <p className="dica">Mesmas regras do consolidado da rede; os grupos somam a rede</p>
+                </div>
+                {tiposGrupo.length > 1 && (
+                  <div className="abas" style={{ margin: 0 }}>
+                    {tiposGrupo.map((t) => (
+                      <button key={t} className={t === tipoAtivo ? "ativa" : ""} onClick={() => setTipoGrupo(t)}>
+                        {t === "bandeira" ? "Bandeira" : "Regional"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="tabela-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{tipoAtivo === "bandeira" ? "Bandeira" : "Regional"}</th>
+                      <th>Unid.</th>
+                      <th>Pessoas a mais</th>
+                      {IDS.map((id) => <th key={id}>{NOME_CENARIO[id]}</th>)}
+                      <th>Melhor por unidade</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grupos.map((g) => {
+                      const gc = (noPico && g.consolidadoPico ? g.consolidadoPico : g.consolidado)[faseIdx];
+                      return (
+                        <tr key={g.nome}>
+                          <td>{nomeGrupo(g.tipo, g.nome)}</td>
+                          <td>{g.unidadeIds.length}</td>
+                          <td>{formatarNumero(gc.deltaFte)}</td>
+                          {IDS.map((id) => (
+                            <td key={id} className={gc.maisBarato === id ? "melhor" : ""}>
+                              {formatarBRL(gc.custos[id])}
+                              {gc.unidadesAcimaDoLimite[id] > 0 && " ⚠"}
+                            </td>
+                          ))}
+                          <td>{formatarBRL(gc.custoMelhorPorUnidade)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="cartao">
             <div className="secao-topo">
               <div>
-                <h2>Por unidade — {c.fase.nome}</h2>
+                <h2>Por unidade — {c.fase.nome}{noPico && " · pico"}</h2>
                 <p className="dica">A sobra de uma unidade não compensa a falta de outra</p>
               </div>
             </div>
@@ -258,17 +338,25 @@ export default function Painel() {
                 </thead>
                 <tbody>
                   {r.unidades.map((u) => {
-                    const f = u.fases[faseIdx];
+                    const f = fasesDa(u)[faseIdx];
                     return (
                       <Fragment key={u.unidadeId}>
                         <tr>
                           <td>
                             <Link href={`/unidades/${u.unidadeId}`}>{u.nome}</Link>
+                            {noPico && !u.fasesPico && <span className="selo" style={{ marginLeft: 6 }}>sem pico</span>}
                             {u.avisos.length > 0 && <span className="selo alerta" title={u.avisos.join("\n")} style={{ marginLeft: 6 }}>{u.avisos.length} aviso(s)</span>}
                           </td>
                           <td>{formatarNumero(f.fteNecessario)}</td>
                           <td>{formatarNumero(f.fteAtualEquivalente)}</td>
-                          <td>{sinal(f.deltaFte)}</td>
+                          <td>
+                            {sinal(f.deltaFte)}
+                            {f.deficitFte > Math.max(0, f.deltaFte) + 0.005 && (
+                              <span className="dica" title="Soma das faltas por setor: sobra num setor não cobre falta em outro">
+                                {" "}(déficit {formatarNumero(f.deficitFte)})
+                              </span>
+                            )}
+                          </td>
                           {IDS.map((id) => {
                             const cen = f.cenarios[id];
                             return (

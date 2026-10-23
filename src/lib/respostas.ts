@@ -1,4 +1,4 @@
-import type { Cargo, CoberturaSemanal, HorarioSemanal, Premissas, ResultadoRede } from "./tipos";
+import type { Cargo, CoberturaSemanal, HorarioSemanal, Premissas, ResultadoRede, SemanaPico } from "./tipos";
 
 export interface Sessao {
   usuario: { email: string };
@@ -11,14 +11,20 @@ export interface ResumoUnidade {
   headcount: number;
   horasAbertasSemana: number;
   temHorarioReduzido: boolean;
+  temPico: boolean;
+  bandeira: string | null;
+  regional: string | null;
 }
 
 export interface UnidadeCompleta {
   id: string;
   nome: string;
+  bandeira: string | null;
+  regional: string | null;
   horarios: HorarioSemanal;
   horarioReduzido: HorarioSemanal | null;
   cobertura: CoberturaSemanal;
+  pico: SemanaPico | null;
   quadro: Cargo[];
 }
 
