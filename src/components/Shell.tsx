@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Sessao } from "@/lib/respostas";
 import { AVISO_JURIDICO } from "@/lib/textos";
+import { Logo } from "@/components/Logo";
 
 const ContextoSessao = createContext<Sessao | null>(null);
 export const useSessao = () => useContext(ContextoSessao);
@@ -32,9 +33,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <ContextoSessao.Provider value={sessao}>
       <header className="topo">
         <div className="topo-interno">
-          <Link href="/painel" className="marca">
-            <span className="marca-icone" aria-hidden="true">6×1</span>
-            Simulador 6x1
+          <Link href="/painel" className="marca" aria-label="Jornada: ir para o painel">
+            <Logo />
           </Link>
           <nav className="nav" aria-label="Principal">
             {LINKS.map((l) => (

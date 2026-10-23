@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Erros } from "@/components/Erros";
 import { api } from "@/lib/api";
 import { AVISO_JURIDICO } from "@/lib/textos";
+import { Logo } from "@/components/Logo";
 
 export function FormAuth({ modo }: { modo: "entrar" | "cadastro" }) {
   const [erro, setErro] = useState<unknown>(null);
@@ -31,8 +32,7 @@ export function FormAuth({ modo }: { modo: "entrar" | "cadastro" }) {
     <div className="centro">
       <div className="cartao">
         <div className="login-marca">
-          <span className="marca-icone" aria-hidden="true">6×1</span>
-          Simulador 6x1
+          <Logo />
         </div>
         <h2 style={{ marginBottom: 4 }}>{modo === "entrar" ? "Entre na sua conta" : "Crie sua conta"}</h2>
         <p className="subtitulo">Impacto do fim da escala 6x1 em pessoal e custo, com números defensáveis.</p>
