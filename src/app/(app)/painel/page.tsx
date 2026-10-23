@@ -24,6 +24,7 @@ export default function Painel() {
   const [erro, setErro] = useState<unknown>(null);
   const [calculando, setCalculando] = useState(false);
   const [msg, setMsg] = useState("");
+  const [gaveta, setGaveta] = useState(false);
   const pedido = useRef(0);
 
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function Painel() {
 
   if (r.unidades.length === 0) {
     return (
-      <div className="cartao">
+      <div className="cartao vazio">
         <h1>Nenhuma unidade cadastrada</h1>
         <p className="subtitulo">Comece importando suas unidades por CSV ou cadastrando uma a uma.</p>
         <div className="linha">
@@ -98,27 +99,31 @@ export default function Painel() {
 
   return (
     <>
-      <div className="linha" style={{ marginBottom: 16, alignItems: "flex-end" }}>
+      <div className="cabecalho-pagina">
         <div>
           <h1>Resultado da rede</h1>
-          <p className="subtitulo" style={{ margin: 0 }}>
-            {r.unidades.length} unidade(s) · {r.headcountAtual} colaboradores · regras {r.versaoRegras.id}
+          <p className="subtitulo">
+            {r.unidades.length} unidade(s) · {r.headcountAtual} colaboradores · regras <strong>{r.versaoRegras.id}</strong>
             {calculando && " · recalculando…"}
           </p>
         </div>
-        <div className="espaco" />
-        <div>
-          <label htmlFor="data">Data de referência</label>
-          <input id="data" type="date" value={data} onChange={(e) => setData(e.target.value)} style={{ width: 160 }} />
+        <div className="acoes">
+          <div>
+            <label htmlFor="data">Data de referência</label>
+            <input id="data" type="date" value={data} onChange={(e) => setData(e.target.value)} style={{ width: 160 }} />
+          </div>
+          <a className={`botao secundario${alterado ? " desativado" : ""}`} href={alterado ? undefined : `/api/relatorio.pdf${query}`} aria-disabled={alterado} title={alterado ? "Salve as premissas para exportar" : ""}>
+            Exportar PDF
+          </a>
+          <a className={`botao secundario${alterado ? " desativado" : ""}`} href={alterado ? undefined : `/api/relatorio.csv${query}`} aria-disabled={alterado} title={alterado ? "Salve as premissas para exportar" : ""}>
+            Exportar CSV
+          </a>
+          <button className="secundario so-celular" onClick={() => setGaveta(true)} aria-expanded={gaveta}>
+            Premissas
+          </button>
         </div>
-        <a className={`botao secundario${alterado ? " desativado" : ""}`} href={alterado ? undefined : `/api/relatorio.pdf${query}`} aria-disabled={alterado} title={alterado ? "Salve as premissas para exportar" : ""}>
-          Exportar PDF
-        </a>
-        <a className={`botao secundario${alterado ? " desativado" : ""}`} href={alterado ? undefined : `/api/relatorio.csv${query}`} aria-disabled={alterado} title={alterado ? "Salve as premissas para exportar" : ""}>
-          Exportar CSV
-        </a>
       </div>
-      {alterado && <div className="alerta">Premissas alteradas e ainda não salvas. Os números abaixo já usam os novos valores; salve para exportar.</div>}
+      {alterado && <div className="alerta" role="status">Premissas alteradas e ainda não salvas. Os números abaixo já usam os novos valores; salve para exportar.</div>}
       <Erros erro={erro} />
 
       <div className="layout-painel">
@@ -156,23 +161,32 @@ export default function Painel() {
           </div>
 
           <div className="cartao">
-            <h2>Comparação de cenários — {c.fase.nome}</h2>
-            {IDS.map((id) => (
-              <div key={id} style={{ marginBottom: 12 }}>
-                <div className="linha" style={{ justifyContent: "space-between" }}>
-                  <span>
-                    <strong>{NOME_CENARIO[id]}</strong>{" "}
-                    {id === melhor && <span className="selo ok">mais barato</span>}{" "}
-                    {c.unidadesAcimaDoLimite[id] > 0 && <span className="selo alerta">{c.unidadesAcimaDoLimite[id]} unid. acima do limite de HE</span>}{" "}
-                    {c.unidadesSemCenario[id] > 0 && <span className="selo">{c.unidadesSemCenario[id]} unid. usando “contratar”</span>}
-                  </span>
-                  <strong>{formatarBRL(c.custos[id])}/mês</strong>
-                </div>
-                <div className="barra">
-                  <div className={id === melhor ? "melhor" : ""} style={{ width: `${(c.custos[id] / maxCusto) * 100}%` }} />
-                </div>
+            <div className="secao-topo">
+              <div>
+                <h2>Custo por cenário — {c.fase.nome}</h2>
+                <p className="dica">Estimativa mensal adicional para toda a rede</p>
               </div>
-            ))}
+            </div>
+            <div className="barras">
+              {IDS.map((id) => (
+                <Fragment key={id}>
+                  <div className="barra-linha">
+                    <strong>{NOME_CENARIO[id]}</strong>
+                    <div className="barra">
+                      <div className={id === melhor ? "melhor" : ""} style={{ width: `${(c.custos[id] / maxCusto) * 100}%` }} />
+                    </div>
+                    <span className="barra-valor">{formatarBRL(c.custos[id])}/mês</span>
+                  </div>
+                  {(id === melhor || c.unidadesAcimaDoLimite[id] > 0 || c.unidadesSemCenario[id] > 0) && (
+                    <div className="barra-selos">
+                      {id === melhor && <span className="selo ok">mais barato</span>}
+                      {c.unidadesAcimaDoLimite[id] > 0 && <span className="selo alerta">{c.unidadesAcimaDoLimite[id]} unid. acima do limite de HE</span>}
+                      {c.unidadesSemCenario[id] > 0 && <span className="selo">{c.unidadesSemCenario[id]} unid. usando “contratar”</span>}
+                    </div>
+                  )}
+                </Fragment>
+              ))}
+            </div>
             <p className="dica">
               Custos mensais adicionais ao quadro atual. Unidades sem o cenário (ex.: sem horário reduzido informado) entram com o custo de contratar.
               Cenários que excedem o limite legal de hora extra não são indicados como mais baratos.
@@ -180,7 +194,12 @@ export default function Painel() {
           </div>
 
           <div className="cartao">
-            <h2>Três fotografias</h2>
+            <div className="secao-topo">
+              <div>
+                <h2>Três fotografias</h2>
+                <p className="dica">Impacto progressivo das novas jornadas</p>
+              </div>
+            </div>
             <div className="tabela-wrap">
               <table>
                 <thead>
@@ -220,7 +239,12 @@ export default function Painel() {
           </div>
 
           <div className="cartao">
-            <h2>Por unidade — {c.fase.nome}</h2>
+            <div className="secao-topo">
+              <div>
+                <h2>Por unidade — {c.fase.nome}</h2>
+                <p className="dica">A sobra de uma unidade não compensa a falta de outra</p>
+              </div>
+            </div>
             <div className="tabela-wrap">
               <table>
                 <thead>
@@ -255,8 +279,8 @@ export default function Painel() {
                             );
                           })}
                         </tr>
-                        <tr>
-                          <td colSpan={8} style={{ whiteSpace: "normal", borderBottomWidth: 2 }}>
+                        <tr className="linha-memoria">
+                          <td colSpan={8}>
                             <details>
                               <summary>Memória de cálculo</summary>
                               <MemoriaCalculo f={f} p={r.premissas} />
@@ -277,12 +301,12 @@ export default function Painel() {
           <div className="cartao">
             <h2>Premissas utilizadas</h2>
             <div className="tabela-wrap">
-              <table>
+              <table className="tabela-chave-valor">
                 <tbody>
                   {sim.premissasDescritas.map(([k, v]) => (
                     <tr key={k}>
                       <td>{k}</td>
-                      <td style={{ whiteSpace: "normal" }}>{v}</td>
+                      <td>{v}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -294,11 +318,23 @@ export default function Painel() {
               </ul>
             )}
           </div>
-          <div className="aviso"><strong>Limitações.</strong> {LIMITACOES}</div>
+          <div className="cartao">
+            <h2>Limitações do cálculo</h2>
+            <p className="limitacoes">{LIMITACOES}</p>
+          </div>
         </div>
 
-        <aside className="cartao lateral">
-          <h2>Premissas</h2>
+        <div className={`fundo-gaveta${gaveta ? " aberto" : ""}`} onClick={() => setGaveta(false)} aria-hidden="true" />
+        <aside className={`cartao lateral${gaveta ? " aberto" : ""}`} aria-label="Premissas da simulação">
+          <div className="painel-titulo">
+            <div>
+              <h2>Premissas</h2>
+              <span className="dica">Recalcula em tempo real</span>
+            </div>
+            <button className="secundario so-celular" onClick={() => setGaveta(false)}>
+              Fechar
+            </button>
+          </div>
           <PainelPremissas premissas={premissas} versao={r.versaoRegras} onChange={setPremissas} />
           <div className="linha">
             <button onClick={salvar} disabled={!alterado}>Salvar</button>

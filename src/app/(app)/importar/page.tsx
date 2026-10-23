@@ -48,8 +48,12 @@ export default function Importar() {
 
   return (
     <>
-      <h1>Importar CSV</h1>
-      <p className="subtitulo">Cadastre várias unidades de uma vez. A importação é tudo-ou-nada: se houver erro, nada é gravado.</p>
+      <div className="cabecalho-pagina">
+        <div>
+          <h1>Importar CSV</h1>
+          <p className="subtitulo">Cadastre várias unidades de uma vez. A importação é tudo-ou-nada: se houver erro, nada é gravado.</p>
+        </div>
+      </div>
 
       <div className="grade grade-2">
         <div className="cartao">

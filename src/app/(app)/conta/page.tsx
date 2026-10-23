@@ -26,15 +26,19 @@ export default function Conta() {
 
   return (
     <>
-      <h1>Conta</h1>
-      <p className="subtitulo">{sessao?.rede.nome} · {sessao?.usuario.email}</p>
+      <div className="cabecalho-pagina">
+        <div>
+          <h1>Conta</h1>
+          <p className="subtitulo">{sessao?.rede.nome} · {sessao?.usuario.email}</p>
+        </div>
+      </div>
       <Erros erro={erro} />
       <div className="cartao">
         <h2>Sessão</h2>
         <button className="secundario" onClick={sair}>Sair</button>
       </div>
-      <div className="cartao">
-        <h2>Excluir conta e dados</h2>
+      <div className="cartao" style={{ borderColor: "#f2b8b5" }}>
+        <h2 style={{ color: "var(--erro)" }}>Excluir conta e dados</h2>
         <p>
           Apaga definitivamente a rede, usuários, unidades, coberturas, quadros e salários (LGPD: exclusão a pedido). Não pode ser desfeito.
           Exporte o relatório antes, se precisar.

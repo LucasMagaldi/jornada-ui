@@ -33,9 +33,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <header className="topo">
         <div className="topo-interno">
           <Link href="/painel" className="marca">
+            <span className="marca-icone" aria-hidden="true">6×1</span>
             Simulador 6x1
           </Link>
-          <nav className="nav">
+          <nav className="nav" aria-label="Principal">
             {LINKS.map((l) => (
               <Link key={l.href} href={l.href} className={caminho?.startsWith(l.href) ? "ativo" : ""}>
                 {l.rotulo}

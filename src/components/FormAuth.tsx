@@ -30,8 +30,12 @@ export function FormAuth({ modo }: { modo: "entrar" | "cadastro" }) {
   return (
     <div className="centro">
       <div className="cartao">
-        <h1>{modo === "entrar" ? "Entrar" : "Criar conta"}</h1>
-        <p className="subtitulo">Simulador de impacto do fim da escala 6x1</p>
+        <div className="login-marca">
+          <span className="marca-icone" aria-hidden="true">6×1</span>
+          Simulador 6x1
+        </div>
+        <h2 style={{ marginBottom: 4 }}>{modo === "entrar" ? "Entre na sua conta" : "Crie sua conta"}</h2>
+        <p className="subtitulo">Impacto do fim da escala 6x1 em pessoal e custo, com números defensáveis.</p>
         <Erros erro={erro} />
         <form onSubmit={enviar}>
           {modo === "cadastro" && (
@@ -53,7 +57,7 @@ export function FormAuth({ modo }: { modo: "entrar" | "cadastro" }) {
             {enviando ? "Aguarde…" : modo === "entrar" ? "Entrar" : "Criar conta"}
           </button>
         </form>
-        <p style={{ marginTop: 16, fontSize: "0.9rem" }}>
+        <p style={{ marginTop: 16, marginBottom: 0, fontSize: 13 }}>
           {modo === "entrar" ? (
             <>Ainda não tem conta? <Link href="/cadastro">Criar conta</Link></>
           ) : (
@@ -61,7 +65,7 @@ export function FormAuth({ modo }: { modo: "entrar" | "cadastro" }) {
           )}
         </p>
       </div>
-      <p className="dica">{AVISO_JURIDICO}</p>
+      <p className="dica" style={{ fontSize: 11, lineHeight: 1.6 }}>{AVISO_JURIDICO}</p>
     </div>
   );
 }

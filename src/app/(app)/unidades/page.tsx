@@ -28,20 +28,21 @@ export default function Unidades() {
 
   return (
     <>
-      <div className="linha" style={{ marginBottom: 16 }}>
+      <div className="cabecalho-pagina">
         <div>
           <h1>Unidades</h1>
-          <p className="subtitulo" style={{ margin: 0 }}>Horário de funcionamento, cobertura mínima e quadro atual de cada unidade.</p>
+          <p className="subtitulo">Horário de funcionamento, cobertura mínima e quadro atual de cada unidade.</p>
         </div>
-        <div className="espaco" />
-        <Link className="botao secundario" href="/importar">Importar CSV</Link>
-        <Link className="botao" href="/unidades/nova">Nova unidade</Link>
+        <div className="acoes">
+          <Link className="botao secundario" href="/importar">Importar CSV</Link>
+          <Link className="botao" href="/unidades/nova">Nova unidade</Link>
+        </div>
       </div>
       <Erros erro={erro} />
       {unidades === null ? (
         <p className="carregando">Carregando…</p>
       ) : unidades.length === 0 ? (
-        <div className="cartao">Nenhuma unidade ainda. <Link href="/importar">Importe um CSV</Link> ou <Link href="/unidades/nova">cadastre a primeira</Link>.</div>
+        <div className="cartao vazio">Nenhuma unidade ainda. <Link href="/importar">Importe um CSV</Link> ou <Link href="/unidades/nova">cadastre a primeira</Link>.</div>
       ) : (
         <div className="cartao tabela-wrap">
           <table>
