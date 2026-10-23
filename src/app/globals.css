@@ -400,3 +400,42 @@ html { scroll-behavior: smooth; }
   .pub-horario input[type="time"] { width: 100%; }
   .pub-cta .acoes, .pub-cta .acoes .botao { width: 100%; }
 }
+
+/* Resultado do diagnóstico em cartões (legível no celular) e contato por WhatsApp (D-38) */
+.pub-kpi-lista { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px solid var(--borda); display: grid; gap: 6px; font-size: 13px; color: var(--texto); }
+.pub-subtitulo-resultado { font-size: 16px; margin: 22px 0 10px; }
+.pub-fases-custo { margin-bottom: 8px; }
+.pub-card-custo { margin: 0; padding: 16px; }
+.pub-card-custo h4 { margin: 0 0 12px; font-size: 14px; }
+.pub-card-custo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.pub-card-custo li.melhor .pub-custo-linha strong { color: var(--ok); }
+.pub-custo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+.pub-custo-linha strong { white-space: nowrap; }
+.pub-custo-selos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.pub-dica-custo { margin-bottom: 8px; }
+.pub-piloto-menor { margin-top: 10px !important; color: var(--texto) !important; }
+.botao.pub-botao-whatsapp { background: #1a7f43; border-color: #1a7f43; }
+.botao.pub-botao-whatsapp:hover { background: #136434; border-color: #136434; }
+.pub-whatsapp-flutuante {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px 11px 13px;
+  border-radius: 999px;
+  background: #1a7f43;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(15, 42, 67, 0.28);
+}
+.pub-whatsapp-flutuante:hover { background: #136434; }
+.pub-whatsapp-flutuante svg { width: 22px; height: 22px; }
+.pub .rodape { padding-bottom: 84px; }
+@media (max-width: 650px) {
+  .pub-whatsapp-flutuante { right: 14px; bottom: 14px; padding: 12px; }
+  .pub-whatsapp-flutuante span { display: none; }
+}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { DiagnosticoRapido } from "@/components/publico/DiagnosticoRapido";
 import { LinhaDoTempo } from "@/components/publico/LinhaDoTempo";
+import { linkWhatsApp } from "@/lib/contato";
 import { AVISO_JURIDICO, LIMITACOES } from "@/lib/textos";
 
 export const metadata: Metadata = {
@@ -11,9 +12,7 @@ export const metadata: Metadata = {
     "Quantas pessoas a mais cada unidade precisa com a nova jornada, quanto custa por mês e o que sai mais barato: contratar, hora extra, reduzir horário ou um mix. Diagnóstico rápido grátis.",
 };
 
-/** Contato do piloto (D-37); sem ele, os botões levam ao cadastro. */
-const CONTATO = process.env.NEXT_PUBLIC_CONTATO_EMAIL || null;
-const LINK_PILOTO = CONTATO ? `mailto:${CONTATO}?subject=${encodeURIComponent("Piloto Jornada")}` : "/cadastro";
+const WHATSAPP_PILOTO = linkWhatsApp("Olá! Vi o site do Jornada e quero saber como funciona o piloto para a minha rede.");
 
 const ARMADILHAS = [
   {
@@ -115,8 +114,8 @@ export default function PaginaPublica() {
             <a className="botao pub-botao-grande" href="#diagnostico">
               Fazer o diagnóstico rápido
             </a>
-            <a className="botao secundario pub-botao-grande" href={LINK_PILOTO}>
-              {CONTATO ? "Pedir um piloto" : "Criar conta"}
+            <a className="botao secundario pub-botao-grande" href={linkWhatsApp()} target="_blank" rel="noopener noreferrer">
+              Falar no WhatsApp
             </a>
           </div>
           <p className="dica pub-hero-dica">Cerca de 3 minutos, sem cadastro e sem planilha.</p>
@@ -144,7 +143,7 @@ export default function PaginaPublica() {
           <p className="subtitulo">
             Responda sobre uma unidade típica da sua rede. O cálculo é o mesmo do simulador completo, com as regras legais vigentes, e nada do que você digitar é gravado.
           </p>
-          <DiagnosticoRapido contato={CONTATO} />
+          <DiagnosticoRapido />
         </div>
       </section>
 
@@ -182,10 +181,13 @@ export default function PaginaPublica() {
                 <li>Em uma semana: relatório por unidade, consolidado da rede, alternativas de custo e o cenário de Natal.</li>
                 <li>O valor do piloto é abatido da implantação.</li>
               </ul>
+              <p className="pub-piloto-menor">
+                <strong>Rede com 1 ou 2 lojas?</strong> Fazemos um diagnóstico das suas unidades, com o mesmo relatório. Chame no WhatsApp.
+              </p>
             </div>
             <div className="acoes">
-              <a className="botao pub-botao-grande" href={LINK_PILOTO}>
-                {CONTATO ? "Pedir um piloto" : "Criar conta"}
+              <a className="botao pub-botao-grande pub-botao-whatsapp" href={WHATSAPP_PILOTO} target="_blank" rel="noopener noreferrer">
+                Falar no WhatsApp
               </a>
             </div>
           </div>
@@ -207,6 +209,16 @@ export default function PaginaPublica() {
       </section>
 
       </main>
+
+      <a className="pub-whatsapp-flutuante" href={linkWhatsApp()} target="_blank" rel="noopener noreferrer" aria-label="Falar com o Jornada no WhatsApp">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3c-.2.3-.9.9-.9 2.2s1 2.6 1.1 2.7c.1.2 1.9 2.9 4.6 4 1.7.7 2.4.8 3.2.7.5-.1 1.5-.6 1.8-1.2.2-.6.2-1.1.1-1.2l-.4-.3Z"
+          />
+        </svg>
+        <span>WhatsApp</span>
+      </a>
 
       <footer className="rodape">
         <p>

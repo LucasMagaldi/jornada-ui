@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Erros } from "@/components/Erros";
 import { api } from "@/lib/api";
+import { linkWhatsApp } from "@/lib/contato";
 import { formatarBRL, formatarNumero } from "@/lib/formato";
 import type { RespostaDiagnostico } from "@/lib/respostas";
 import { AVISO_JURIDICO, LIMITACOES } from "@/lib/textos";
@@ -135,11 +136,11 @@ function Numero({ id, rotulo, valor, onChange, min = 0, passo = 1, dica }: { id:
   );
 }
 
-export function DiagnosticoRapido({ contato }: { contato: string | null }) {
+export function DiagnosticoRapido() {
   const [segmento, setSegmento] = useState<IdSegmento>("farmacia");
   const [form, setForm] = useState<Formulario>({ unidades: 10, ...SEGMENTOS.farmacia.form });
   const [premissas, setPremissas] = useState<PremissasTela>({ perdas: "", fatorEncargos: "", adicionalHoraExtra: "", margemSeguranca: "" });
-  const [resposta, setResposta] = useState<{ r: RespostaDiagnostico; nomePico: string } | null>(null);
+  const [resposta, setResposta] = useState<{ r: RespostaDiagnostico; nomePico: string; segmento: string } | null>(null);
   const [erro, setErro] = useState<unknown>(null);
   const [calculando, setCalculando] = useState(false);
   const resultadoRef = useRef<HTMLDivElement>(null);
@@ -158,7 +159,7 @@ export function DiagnosticoRapido({ contato }: { contato: string | null }) {
     setErro(null);
     try {
       const r = await api<RespostaDiagnostico>("/publico/diagnostico", { method: "POST", body: corpoDaRequisicao(form, premissas) });
-      setResposta({ r, nomePico: form.pico.descricao.trim() });
+      setResposta({ r, nomePico: form.pico.descricao.trim(), segmento: SEGMENTOS[segmento].nome });
       requestAnimationFrame(() => resultadoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (e) {
       setErro(e);
@@ -296,52 +297,104 @@ export function DiagnosticoRapido({ contato }: { contato: string | null }) {
         </div>
       </form>
 
-      <div ref={resultadoRef}>{resposta && <Resultado resposta={resposta.r} nomePico={resposta.nomePico} contato={contato} />}</div>
+      <div ref={resultadoRef}>{resposta && <Resultado resposta={resposta.r} nomePico={resposta.nomePico} segmento={resposta.segmento} />}</div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
 
+const EPS = 1e-9;
 const pessoas = (v: number) => `${formatarNumero(v, 1)} ${Math.abs(v) >= 0.95 && Math.abs(v) < 1.05 ? "pessoa" : "pessoas"}`;
 const excede = (f: ResultadoFase, id: IdCenario) => f.cenarios[id].detalhes.excedeLimiteLegal === true;
+const inteiras = (d: number) => (d > EPS ? Math.ceil(d - EPS) : 0);
+const custoMelhor = (f: ResultadoFase) => (f.maisBarato ? f.cenarios[f.maisBarato].custoMensal : 0);
 
-function Resultado({ resposta, nomePico, contato }: { resposta: RespostaDiagnostico; nomePico: string; contato: string | null }) {
+/** Contratações inteiras por unidade, setor a setor (a falta fracionária vira gente inteira). */
+function contratacoesPorSetor(f: ResultadoFase) {
+  return f.setores.map((s) => ({ setor: s.setor, qtd: inteiras(s.deltaFte) })).filter((s) => s.qtd > 0);
+}
+
+function praticaPorUnidade(f: ResultadoFase, hoje: ResultadoFase): string | null {
+  const agora = contratacoesPorSetor(f);
+  if (!agora.length) return null;
+  const antes = new Map(contratacoesPorSetor(hoje).map((s) => [s.setor, s.qtd]));
+  return agora
+    .map(({ setor, qtd }) => {
+      const jaFalta = Math.min(antes.get(setor) ?? 0, qtd);
+      return `${setor ? `${setor} ` : ""}+${qtd}${setor ? "" : qtd === 1 ? " pessoa" : " pessoas"}${jaFalta > 0 ? ` (${jaFalta} já falta${jaFalta > 1 ? "m" : ""} hoje)` : ""}`;
+    })
+    .join("; ");
+}
+
+function Resultado({ resposta, nomePico, segmento }: { resposta: RespostaDiagnostico; nomePico: string; segmento: string }) {
   const n = resposta.unidades;
   const u = resposta.resultado.unidades[0];
   const fases = u.fases;
+  const hoje = fases[0];
   const futuras = fases.slice(1);
-  const nomeFase = (f: ResultadoFase) => f.fase.nome;
+  const ultima = fases[fases.length - 1];
+  const pc = resposta.resultado.premissas.mixPercentualContratacao;
+  const nomeCenario = (id: IdCenario) =>
+    id === "mix" ? `Mix (${formatarNumero(pc * 100, 0)}% contratando, ${formatarNumero((1 - pc) * 100, 0)}% em hora extra)` : NOME_CENARIO[id];
+  const porLoja = n > 1 ? "por loja" : "na loja";
 
   // Saldo da loja × falta por setor: onde a soma esconde a falta (D-32).
   const escondida = [...futuras].reverse().find((f) => f.setores.length > 1 && f.deficitFte - Math.max(0, f.deltaFte) > 0.05);
   const pico = u.fasesPico;
   const saldo = (f: ResultadoFase) => (f.deltaFte <= 0 ? `sobram ${pessoas(-f.deltaFte * n)}` : `faltam só ${pessoas(f.deltaFte * n)}`);
 
+  const resumo =
+    `Olá! Fiz o diagnóstico rápido do Jornada (${segmento}, ${n} ${n === 1 ? "unidade" : "unidades"}). ` +
+    (ultima.deficitFte > 0.005
+      ? `Na ${ultima.fase.nome.toLowerCase()} faltam ${pessoas(ultima.deficitFte * n)}, a partir de ${formatarBRL(custoMelhor(ultima) * n)}/mês. `
+      : "O resultado não mostrou falta de pessoas. ") +
+    "Quero entender melhor.";
+
   return (
     <section className="pub-resultado" aria-live="polite">
       <h3 className="pub-resultado-titulo">Resultado {n > 1 ? `para ${n} unidades` : "para a unidade"}</h3>
 
       <div className="grade grade-3">
-        {fases.map((f, i) => {
-          const melhor = f.maisBarato;
+        <div className="kpi">
+          <span className="rotulo">{hoje.fase.nome}</span>
+          {hoje.deficitFte > 0.005 ? (
+            <>
+              <span className="valor">já faltam {pessoas(hoje.deficitFte * n)}</span>
+              <span className="nota">
+                Para cobrir todo o horário com a regra atual. Na prática, isso costuma ser coberto hoje com hora extra, ou parte do horário fica descoberta.
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="valor">sem falta</span>
+              <span className="nota">O quadro atual cobre a operação; {saldo(hoje)}.</span>
+            </>
+          )}
+        </div>
+        {futuras.map((f) => {
+          const aMais = (f.deficitFte - hoje.deficitFte) * n;
+          const custoAMais = (custoMelhor(f) - custoMelhor(hoje)) * n;
+          const pratica = praticaPorUnidade(f, hoje);
           return (
-            <div key={f.fase.id} className={`kpi ${i > 0 ? "pub-kpi-fase" : ""}`}>
-              <span className="rotulo">{nomeFase(f)}</span>
-              {f.deficitFte > 0.005 ? (
-                <>
-                  <span className="valor">faltam {pessoas(f.deficitFte * n)}</span>
-                  <span className="nota">
-                    {n > 1 ? `${pessoas(f.deficitFte)} por unidade · ` : ""}
-                    {melhor ? `${NOME_CENARIO[melhor].toLowerCase()} custa ${formatarBRL(f.cenarios[melhor].custoMensal * n)}/mês` : "sem cenário dentro do limite legal"}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="valor">sem falta</span>
-                  <span className="nota">O quadro atual cobre a operação; {saldo(f)}.</span>
-                </>
-              )}
+            <div key={f.fase.id} className="kpi pub-kpi-fase">
+              <span className="rotulo">{f.fase.nome}</span>
+              <span className="valor">{aMais > 0.005 ? `+${pessoas(aMais)}` : "nada a mais"}</span>
+              <span className="nota">em relação a hoje{f.deficitFte > 0.005 ? `; no total, faltam ${pessoas(f.deficitFte * n)}` : ""}</span>
+              <ul className="pub-kpi-lista">
+                {pratica && (
+                  <li>
+                    <strong>Na prática, {porLoja}:</strong> {pratica}.
+                  </li>
+                )}
+                {f.maisBarato && f.deficitFte > 0.005 && (
+                  <li>
+                    <strong>Mais barato:</strong> {nomeCenario(f.maisBarato).toLowerCase()}, {formatarBRL(custoMelhor(f) * n)}/mês
+                    {custoAMais > 0.5 ? ` (${formatarBRL(custoAMais)} a mais que hoje)` : ""}.
+                  </li>
+                )}
+                {!f.maisBarato && f.deficitFte > 0.005 && <li>Nenhuma alternativa fica dentro do limite legal de hora extra.</li>}
+              </ul>
             </div>
           );
         })}
@@ -349,7 +402,7 @@ function Resultado({ resposta, nomePico, contato }: { resposta: RespostaDiagnost
 
       {escondida && (
         <div className="alerta pub-destaque">
-          <strong>Somando a loja inteira, isso não aparece.</strong> Na {nomeFase(escondida).toLowerCase()}, no total {saldo(escondida)}, mas faltam{" "}
+          <strong>Somando a loja inteira, isso não aparece.</strong> Na {escondida.fase.nome.toLowerCase()}, no total {saldo(escondida)}, mas faltam{" "}
           {pessoas(escondida.deficitFte * n)} quando se separa por setor:{" "}
           {escondida.setores
             .map((s) => `${s.setor || "geral"} ${s.deltaFte > 0 ? `precisa de mais ${formatarNumero(s.deltaFte * n, 1)}` : `tem sobra de ${formatarNumero(-s.deltaFte * n, 1)}`}`)
@@ -358,89 +411,87 @@ function Resultado({ resposta, nomePico, contato }: { resposta: RespostaDiagnost
         </div>
       )}
 
-      <div className="cartao">
-        <h3>Custo mensal de cada alternativa {n > 1 ? `(rede, ${n} unidades)` : ""}</h3>
-        <div className="tabela-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Alternativa</th>
-                {fases.map((f) => (
-                  <th key={f.fase.id}>{nomeFase(f)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ORDEM_CENARIOS.map((id) => (
-                <tr key={id}>
-                  <td>{NOME_CENARIO[id]}</td>
-                  {fases.map((f) => {
+      <h3 className="pub-subtitulo-resultado">Custo mensal de cada alternativa{n > 1 ? ` (rede, ${n} unidades)` : ""}</h3>
+      <div className="grade grade-3 pub-fases-custo">
+        {fases.map((f) => {
+          const visiveis = ORDEM_CENARIOS.filter((id) => f.cenarios[id].disponivel);
+          const max = Math.max(1, ...visiveis.map((id) => f.cenarios[id].custoMensal));
+          return (
+            <div key={f.fase.id} className="cartao pub-card-custo">
+              <h4>{f.fase.nome}</h4>
+              {f.deficitFte <= 0.005 ? (
+                <p className="dica">Sem falta: nenhum custo adicional.</p>
+              ) : (
+                <ul>
+                  {visiveis.map((id) => {
                     const c = f.cenarios[id];
-                    if (!c.disponivel) return <td key={f.fase.id} className="na">{id === "reduzirHorario" ? "no simulador completo" : "não se aplica"}</td>;
+                    const melhor = f.maisBarato === id;
                     return (
-                      <td key={f.fase.id} className={f.maisBarato === id && f.deficitFte > 0.005 ? "melhor" : ""}>
-                        {formatarBRL(c.custoMensal * n)}
-                        {excede(f, id) && (
-                          <>
-                            <br />
-                            <span className="selo alerta">acima do limite de HE</span>
-                          </>
+                      <li key={id} className={melhor ? "melhor" : ""}>
+                        <div className="pub-custo-linha">
+                          <span>{nomeCenario(id)}</span>
+                          <strong>{formatarBRL(c.custoMensal * n)}</strong>
+                        </div>
+                        <div className="barra">
+                          <div className={melhor ? "melhor" : ""} style={{ width: `${(c.custoMensal / max) * 100}%` }} />
+                        </div>
+                        {(melhor || excede(f, id)) && (
+                          <div className="pub-custo-selos">
+                            {melhor && <span className="selo ok">mais barato</span>}
+                            {excede(f, id) && <span className="selo alerta">acima do limite de hora extra</span>}
+                          </div>
                         )}
-                      </td>
+                      </li>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="dica">
-          Em verde, a alternativa mais barata dentro do limite legal de hora extra. Mix: {formatarNumero(resposta.resultado.premissas.mixPercentualContratacao * 100, 0)}% contratação e o
-          restante em hora extra.
-        </p>
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </div>
+      <p className="dica pub-dica-custo">
+        O mais barato é escolhido só entre as alternativas dentro do limite legal de hora extra. Reduzir horário é calculado no simulador completo.
+      </p>
 
       {pico && (
-        <div className="cartao">
-          <h3>Semana de pico{nomePico ? `: ${nomePico}` : ""}</h3>
+        <>
+          <h3 className="pub-subtitulo-resultado">Semana de pico{nomePico ? `: ${nomePico}` : ""}</h3>
           <p className="dica">Mesmo quadro, com o horário e a equipe do pico. Os custos supõem o pico durante o mês inteiro, para comparar alternativas.</p>
-          <div className="tabela-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fase</th>
-                  <th>Falta na semana típica</th>
-                  <th>Falta no pico</th>
-                  <th>Hora extra por pessoa</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pico.map((p, i) => {
-                  const he = p.cenarios.horaExtra;
-                  const porPessoa = Number(he.detalhes.horasExtrasSemanaPorColaborador ?? 0);
-                  const limite = Number(he.detalhes.limiteSemanalPorColaborador ?? 0);
-                  return (
-                    <tr key={p.fase.id}>
-                      <td>{nomeFase(p)}</td>
-                      <td>{formatarNumero(fases[i].deficitFte * n, 1)}</td>
-                      <td>{formatarNumero(p.deficitFte * n, 1)}</td>
-                      <td>
-                        {!he.disponivel ? (
-                          "sem quem faça"
-                        ) : (
-                          <>
-                            {formatarNumero(porPessoa, 1)} h/semana{" "}
-                            {excede(p, "horaExtra") ? <span className="selo alerta">acima do limite de {formatarNumero(limite, 0)} h</span> : <span className="selo ok">dentro do limite</span>}
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grade grade-3 pub-fases-custo">
+            {pico.map((p, i) => {
+              const he = p.cenarios.horaExtra;
+              const porPessoa = Number(he.detalhes.horasExtrasSemanaPorColaborador ?? 0);
+              const limite = Number(he.detalhes.limiteSemanalPorColaborador ?? 0);
+              return (
+                <div key={p.fase.id} className="cartao pub-card-custo">
+                  <h4>{p.fase.nome}</h4>
+                  <div className="pub-custo-linha">
+                    <span>Falta no pico</span>
+                    <strong>{pessoas(p.deficitFte * n)}</strong>
+                  </div>
+                  <div className="pub-custo-linha">
+                    <span>Na semana típica</span>
+                    <span>{pessoas(fases[i].deficitFte * n)}</span>
+                  </div>
+                  <div className="pub-custo-linha">
+                    <span>Hora extra por pessoa</span>
+                    <span>{he.disponivel ? `${formatarNumero(porPessoa, 1)} h/semana` : "sem quem faça"}</span>
+                  </div>
+                  {he.disponivel && (
+                    <div className="pub-custo-selos">
+                      {excede(p, "horaExtra") ? (
+                        <span className="selo alerta">acima do limite de {formatarNumero(limite, 0)} h/semana</span>
+                      ) : (
+                        <span className="selo ok">dentro do limite</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </>
       )}
 
       {u.avisos.length > 0 && (
@@ -460,7 +511,7 @@ function Resultado({ resposta, nomePico, contato }: { resposta: RespostaDiagnost
           <div className="memoria">
             <p>
               <code>FTE necessário = horas de cobertura ÷ (jornada × (1 − perdas)) × (1 + margem)</code>; a falta é o FTE necessário menos o FTE atual, setor a setor. Valores por
-              unidade{n > 1 ? `; a rede é × ${n}` : ""}.
+              unidade{n > 1 ? `; a rede é × ${n}` : ""}. &quot;Na prática&quot; arredonda a falta de cada setor para cima.
             </p>
             <div className="tabela-wrap">
               <table>
@@ -468,7 +519,7 @@ function Resultado({ resposta, nomePico, contato }: { resposta: RespostaDiagnost
                   <tr>
                     <th>Por unidade</th>
                     {fases.map((f) => (
-                      <th key={f.fase.id}>{nomeFase(f)}</th>
+                      <th key={f.fase.id}>{f.fase.nome}</th>
                     ))}
                   </tr>
                 </thead>
@@ -505,19 +556,17 @@ function Resultado({ resposta, nomePico, contato }: { resposta: RespostaDiagnost
 
       <div className="cartao pub-cta">
         <div>
-          <h3>Isso é uma unidade típica. Sua rede não é.</h3>
+          <h3>Quer esse cálculo loja a loja?</h3>
           <p>
-            No simulador completo, cada loja tem o próprio horário, cobertura por faixa e por setor, quadro por cargo, semana de pico e consolidado por bandeira e regional, com
-            relatório em PDF e CSV.
+            Esta é uma unidade típica. Com os dados de cada loja (horário, cobertura por setor, quadro por cargo e semana de pico), entregamos o relatório da rede em PDF e CSV
+            com todas as premissas. Fale com a gente pelo WhatsApp: a mensagem já vai com o resumo deste diagnóstico.
           </p>
         </div>
         <div className="acoes">
-          {contato && (
-            <a className="botao" href={`mailto:${contato}?subject=${encodeURIComponent("Piloto Jornada")}`}>
-              Pedir um piloto
-            </a>
-          )}
-          <a className={`botao ${contato ? "secundario" : ""}`} href="/cadastro">
+          <a className="botao pub-botao-whatsapp" href={linkWhatsApp(resumo)} target="_blank" rel="noopener noreferrer">
+            Falar no WhatsApp
+          </a>
+          <a className="botao secundario" href="/cadastro">
             Criar conta e simular por loja
           </a>
         </div>
