@@ -1,4 +1,4 @@
-import type { Cargo, CoberturaSemanal, HorarioSemanal, Premissas, ResultadoRede, SemanaPico } from "./tipos";
+import type { Cargo, CoberturaSemanal, HorarioSemanal, Premissas, ResultadoRede, SemanaPico, VersaoRegras } from "./tipos";
 
 export interface Sessao {
   usuario: { email: string };
@@ -37,4 +37,15 @@ export interface RespostaSimulacao {
 export interface RespostaPremissas {
   premissas: Premissas;
   padrao: Premissas;
+}
+
+/** GET /publico/regras (D-37). */
+export interface RespostaRegrasPublicas {
+  dataReferencia: string;
+  vigente: VersaoRegras;
+}
+
+/** POST /publico/diagnostico (D-36): `resultado` tem uma unidade típica; a rede é ela × `unidades`. */
+export interface RespostaDiagnostico extends RespostaSimulacao {
+  unidades: number;
 }
